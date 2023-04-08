@@ -1,10 +1,11 @@
 package com.hncboy.chatgpt.base.handler.aspect;
 
 import cn.hutool.core.util.BooleanUtil;
-import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.servlet.JakartaServletUtil;
 import com.hncboy.chatgpt.base.config.ChatConfig;
+import com.hncboy.chatgpt.base.domain.entity.UserSecretDO;
 import com.hncboy.chatgpt.base.exception.AuthException;
+import com.hncboy.chatgpt.base.service.UserSecretService;
 import com.hncboy.chatgpt.base.util.WebUtil;
 import jakarta.annotation.Resource;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -27,6 +28,9 @@ public class FrontPreAuthAspect {
     @Resource
     private ChatConfig chatConfig;
 
+    @Resource
+    private UserSecretService userSecretService;
+
     @Pointcut("@annotation(com.hncboy.chatgpt.base.annotation.FrontPreAuth) || @within(com.hncboy.chatgpt.base.annotation.FrontPreAuth)")
     public void pointcut() {
 
@@ -47,10 +51,14 @@ public class FrontPreAuthAspect {
         }
 
         String authorization = JakartaServletUtil.getHeader(WebUtil.getRequest(), "Authorization", StandardCharsets.UTF_8);
-        if (StrUtil.isBlank(authorization) || !authorization.replace("Bearer ", "").trim().equals(chatConfig.getAuthSecretKey().trim())) {
-            throw new AuthException("Error: 无访问权限 | No access rights");
+        String secret = authorization.replace("Bearer ", "").trim();
+        UserSecretDO userSecretDO = userSecretService.queryBySecret(secret);
+        if (userSecretDO == null) {
+            throw new AuthException("Error: 无访问权限,请去微信公众号 省钱帮 申请秘钥 | No access rights");
         }
-
+        if (userSecretDO.getBalance() < 0) {
+            throw new AuthException("秘钥额度为0，请去微信公众号 省钱帮 申请额度");
+        }
         return point.proceed();
     }
 }

@@ -3,9 +3,14 @@ package com.hncboy.chatgpt.front.service.impl;
 import cn.hutool.core.text.StrPool;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.servlet.JakartaServletUtil;
+import cn.hutool.extra.spring.SpringUtil;
 import com.hncboy.chatgpt.base.config.ChatConfig;
+import com.hncboy.chatgpt.base.domain.entity.UserSecretDO;
 import com.hncboy.chatgpt.base.enums.ApiTypeEnum;
+import com.hncboy.chatgpt.base.service.UserSecretService;
 import com.hncboy.chatgpt.base.util.ObjectMapperUtil;
+import com.hncboy.chatgpt.base.util.WebUtil;
 import com.hncboy.chatgpt.front.api.apikey.ApiKeyChatClientBuilder;
 import com.hncboy.chatgpt.front.domain.request.ChatProcessRequest;
 import com.hncboy.chatgpt.front.domain.vo.ChatConfigVO;
@@ -14,11 +19,13 @@ import com.hncboy.chatgpt.front.handler.emitter.IpRateLimiterEmitterChain;
 import com.hncboy.chatgpt.front.handler.emitter.ResponseEmitterChain;
 import com.hncboy.chatgpt.front.handler.emitter.SensitiveWordEmitterChain;
 import com.hncboy.chatgpt.front.service.ChatService;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
-import jakarta.annotation.Resource;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * @author hncboy
@@ -53,9 +60,18 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public ResponseBodyEmitter chatProcess(ChatProcessRequest chatProcessRequest) {
+        String secret = JakartaServletUtil.getHeader(WebUtil.getRequest(), "Authorization", StandardCharsets.UTF_8).replace("Bearer ", "").trim();
+
         // 超时时间设置 3 分钟
         ResponseBodyEmitter emitter = new ResponseBodyEmitter(3 * 60 * 1000L);
-        emitter.onCompletion(() -> log.debug("请求参数：{}，Front-end closed the emitter connection.", ObjectMapperUtil.toJson(chatProcessRequest)));
+        emitter.onCompletion(() -> {
+            log.info("请求参数：{}，Front-end closed the emitter connection.", ObjectMapperUtil.toJson(chatProcessRequest));
+            UserSecretService userSecretService = SpringUtil.getBean(UserSecretService.class);
+            UserSecretDO userSecretDo = userSecretService.queryBySecret(secret);
+            log.info("last balance:{},spends words:{}", userSecretDo.getBalance(), chatProcessRequest.getPrompt().length());
+            long newBalance = userSecretDo.getBalance() - chatProcessRequest.getPrompt().length();
+            userSecretService.updateBalance(newBalance, userSecretDo.getId());
+        });
         emitter.onTimeout(() -> log.error("请求参数：{}，Back-end closed the emitter connection.", ObjectMapperUtil.toJson(chatProcessRequest)));
 
         // 构建 emitter 处理链路
@@ -64,6 +80,11 @@ public class ChatServiceImpl implements ChatService {
         sensitiveWordEmitterChain.setNext(new ChatMessageEmitterChain());
         ipRateLimiterEmitterChain.setNext(sensitiveWordEmitterChain);
         ipRateLimiterEmitterChain.doChain(chatProcessRequest, emitter);
+        try {
+            emitter.send("This is the end of the response stream.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         return emitter;
     }
 }
