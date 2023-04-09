@@ -62,6 +62,8 @@ public class ApiKeyChatClientBuilder {
         Proxy proxy = Proxy.NO_PROXY;
         if (chatConfig.hasHttpProxy()) {
             proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(chatConfig.getHttpProxyHost(), chatConfig.getHttpProxyPort()));
+        } else if (chatConfig.hasSocksProxy()) {
+            proxy = new Proxy(Proxy.Type.SOCKS, new InetSocketAddress(chatConfig.getSocksProxyHost(), chatConfig.getSocksProxyPort()));
         }
         return proxy;
     }

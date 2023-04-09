@@ -3,25 +3,30 @@ package com.hncboy.chatgpt.front.service.impl;
 import cn.hutool.core.util.BooleanUtil;
 import cn.hutool.core.util.StrUtil;
 import com.hncboy.chatgpt.base.config.ChatConfig;
+import com.hncboy.chatgpt.base.domain.entity.UserSecretDO;
 import com.hncboy.chatgpt.base.exception.ServiceException;
+import com.hncboy.chatgpt.base.service.UserSecretService;
 import com.hncboy.chatgpt.front.domain.request.VerifySecretRequest;
 import com.hncboy.chatgpt.front.domain.vo.ApiModelVO;
 import com.hncboy.chatgpt.front.service.AuthService;
-import org.springframework.stereotype.Service;
-
 import jakarta.annotation.Resource;
-import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 /**
  * @author hncboy
  * @date 2023/3/22 20:05
  * 鉴权相关业务实现类
  */
+@Slf4j
 @Service
 public class AuthServiceImpl implements AuthService {
 
     @Resource
     private ChatConfig chatConfig;
+
+    @Resource
+    private UserSecretService userSecretService;
 
     @Override
     public String verifySecretKey(VerifySecretRequest verifySecretRequest) {
@@ -33,7 +38,13 @@ public class AuthServiceImpl implements AuthService {
             throw new ServiceException("Secret key is empty");
         }
 
-        if (Objects.equals(verifySecretRequest.getToken(), chatConfig.getAuthSecretKey())) {
+        UserSecretDO userSecretDO = userSecretService.queryBySecret(verifySecretRequest.getToken());
+        if (userSecretDO != null) {
+            if (userSecretDO.getBalance() <= 0) {
+                log.error("secret 余额为0，请去公众号 省钱帮 进行申请！");
+                throw new ServiceException("secret 余额为0，请去公众号 省钱帮 进行申请！");
+            }
+            log.info("userSecretDo:{}", userSecretDO);
             return "Verify successfully";
         }
 

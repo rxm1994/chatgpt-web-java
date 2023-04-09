@@ -68,6 +68,10 @@ public class ChatConfig implements InitializingBean {
      */
     private Integer httpProxyPort;
 
+    private String socksProxyHost;
+
+    private Integer socksProxyPort;
+
     /**
      * 管理端账号
      */
@@ -112,6 +116,11 @@ public class ChatConfig implements InitializingBean {
      * 管理端是否展示隐藏的消息，默认不展示
      */
     private Boolean isAdminShowHiddenMessage;
+
+
+    public Boolean hasSocksProxy() {
+        return StrUtil.isNotBlank(socksProxyHost) && Objects.nonNull(socksProxyPort);
+    }
 
     /**
      * 判断是否有 http 代理

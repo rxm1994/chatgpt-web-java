@@ -10,6 +10,7 @@ import com.hncboy.chatgpt.base.domain.entity.UserSecretDO;
 import com.hncboy.chatgpt.base.enums.ApiTypeEnum;
 import com.hncboy.chatgpt.base.service.UserSecretService;
 import com.hncboy.chatgpt.base.util.ObjectMapperUtil;
+import com.hncboy.chatgpt.base.util.StringUtil;
 import com.hncboy.chatgpt.base.util.WebUtil;
 import com.hncboy.chatgpt.front.api.apikey.ApiKeyChatClientBuilder;
 import com.hncboy.chatgpt.front.domain.request.ChatProcessRequest;
@@ -68,11 +69,18 @@ public class ChatServiceImpl implements ChatService {
             log.info("请求参数：{}，Front-end closed the emitter connection.", ObjectMapperUtil.toJson(chatProcessRequest));
             UserSecretService userSecretService = SpringUtil.getBean(UserSecretService.class);
             UserSecretDO userSecretDo = userSecretService.queryBySecret(secret);
-            log.info("last balance:{},spends words:{}", userSecretDo.getBalance(), chatProcessRequest.getPrompt().length());
-            long newBalance = userSecretDo.getBalance() - chatProcessRequest.getPrompt().length();
+            int promptLength = StringUtil.countChineseAndEnglish(chatProcessRequest.getPrompt());
+            log.info("last balance:{},spends words:{}", userSecretDo.getBalance(), promptLength);
+            long newBalance = userSecretDo.getBalance() - promptLength;
             userSecretService.updateBalance(newBalance, userSecretDo.getId());
         });
         emitter.onTimeout(() -> log.error("请求参数：{}，Back-end closed the emitter connection.", ObjectMapperUtil.toJson(chatProcessRequest)));
+
+        try {
+            emitter.send("This is the end of the response stream.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         // 构建 emitter 处理链路
         ResponseEmitterChain ipRateLimiterEmitterChain = new IpRateLimiterEmitterChain();
@@ -80,11 +88,6 @@ public class ChatServiceImpl implements ChatService {
         sensitiveWordEmitterChain.setNext(new ChatMessageEmitterChain());
         ipRateLimiterEmitterChain.setNext(sensitiveWordEmitterChain);
         ipRateLimiterEmitterChain.doChain(chatProcessRequest, emitter);
-        try {
-            emitter.send("This is the end of the response stream.");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         return emitter;
     }
 }
