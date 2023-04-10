@@ -7,6 +7,10 @@
 - [Chanzhaoyu/chatgpt-web](https://github.com/Chanzhaoyu/chatgpt-web) 项目的 Java 后台，最新代码在 main 分支
 - 该分支关联项目的 [2.10.8](https://github.com/Chanzhaoyu/chatgpt-web/releases/tag/v2.10.8) 版本，在不改动前端的情况下更新后台
 - 管理端开源代码 https://github.com/hncboy/chatgpt-web-admin
+- fork之后新增功能如下
+  - 增加演示用户和vip用户的控制，增加秘钥的提问字数控制，可以控制每个秘钥的提问字数
+  - 增加演示用户和vip用户的限流区别，vip用户的访问次数可以是演示用户访问次数的N倍
+  - 扩充代理方式，在原HTTP代理基础上增加socks代理方式
 
 # 注意
 
