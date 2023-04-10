@@ -41,8 +41,8 @@ public class AuthServiceImpl implements AuthService {
         UserSecretDO userSecretDO = userSecretService.queryBySecret(verifySecretRequest.getToken());
         if (userSecretDO != null) {
             if (userSecretDO.getBalance() <= 0) {
-                log.error("secret 余额为0，请去公众号 省钱帮 进行申请！");
-                throw new ServiceException("secret 余额为0，请去公众号 省钱帮 进行申请！");
+                log.error("secret 余额为0，请去公众号  进行申请！");
+                throw new ServiceException("secret 余额为0，请去公众号 AI小薪 进行申请！");
             }
             log.info("userSecretDo:{}", userSecretDO);
             return "Verify successfully";

@@ -54,10 +54,10 @@ public class FrontPreAuthAspect {
         String secret = authorization.replace("Bearer ", "").trim();
         UserSecretDO userSecretDO = userSecretService.queryBySecret(secret);
         if (userSecretDO == null) {
-            throw new AuthException("Error: 无访问权限,请去微信公众号 省钱帮 申请秘钥 | No access rights");
+            throw new AuthException("Error: 无访问权限,请去微信公众号 AI小薪 申请秘钥 | No access rights");
         }
         if (userSecretDO.getBalance() < 0) {
-            throw new AuthException("秘钥额度为0，请去微信公众号 省钱帮 申请额度");
+            throw new AuthException("秘钥额度为0，请去微信公众号 AI小薪 申请额度");
         }
         return point.proceed();
     }

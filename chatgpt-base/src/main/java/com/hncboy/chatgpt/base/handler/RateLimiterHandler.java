@@ -3,11 +3,13 @@ package com.hncboy.chatgpt.base.handler;
 import cn.hutool.core.date.DatePattern;
 import cn.hutool.core.date.LocalDateTimeUtil;
 import cn.hutool.core.lang.Pair;
+import cn.hutool.extra.servlet.JakartaServletUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hncboy.chatgpt.base.config.ChatConfig;
+import com.hncboy.chatgpt.base.util.WebUtil;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +17,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.FileWriter;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -73,8 +76,8 @@ public class RateLimiterHandler {
         removeExpiredRequests(GLOBAL_REQUEST_TIMESTAMP_QUEUE, now, chatConfig.getMaxRequestSecond());
 
         // 检查 IP 和全局限流是否触发
-        boolean ipAllowed = ipTimestampDeque.size() < chatConfig.getIpMaxRequest();
-        boolean globalAllowed = GLOBAL_REQUEST_TIMESTAMP_QUEUE.size() < chatConfig.getMaxRequest();
+        boolean ipAllowed = ipTimestampDeque.size() < getCount(chatConfig.getIpMaxRequest(),chatConfig);
+        boolean globalAllowed = GLOBAL_REQUEST_TIMESTAMP_QUEUE.size() < getCount(chatConfig.getMaxRequest(), chatConfig);
 
         // 如果 IP 和全局限流均未触发，则添加请求到队列
         if (ipAllowed && globalAllowed) {
@@ -105,6 +108,18 @@ public class RateLimiterHandler {
 
         // 返回限流状态和下次可发送请求的时间
         return new Pair<>(false, LocalDateTimeUtil.format(nextSendTime, DatePattern.NORM_DATETIME_PATTERN));
+    }
+
+    private static Integer getCount(Integer count, ChatConfig chatConfig) {
+        String authorization = JakartaServletUtil.getHeader(WebUtil.getRequest(), "Authorization", StandardCharsets.UTF_8);
+        String secret = authorization.replace("Bearer ", "").trim();
+        if (chatConfig.getAuthSecretKey().equals(secret)) {
+            //代表默认的secret相当于是免费的限制一下次数
+            return count;
+        } else {
+            log.info("vip secret multiple :{}", chatConfig.getVipMultiple());
+            return count * chatConfig.getVipMultiple();
+        }
     }
 
 

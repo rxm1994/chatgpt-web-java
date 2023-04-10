@@ -12,7 +12,6 @@ import com.hncboy.chatgpt.base.service.UserSecretService;
 import com.hncboy.chatgpt.base.util.ObjectMapperUtil;
 import com.hncboy.chatgpt.base.util.StringUtil;
 import com.hncboy.chatgpt.base.util.WebUtil;
-import com.hncboy.chatgpt.front.api.apikey.ApiKeyChatClientBuilder;
 import com.hncboy.chatgpt.front.domain.request.ChatProcessRequest;
 import com.hncboy.chatgpt.front.domain.vo.ChatConfigVO;
 import com.hncboy.chatgpt.front.handler.emitter.ChatMessageEmitterChain;
@@ -40,15 +39,16 @@ public class ChatServiceImpl implements ChatService {
     @Resource
     private ChatConfig chatConfig;
 
+    @Resource
+    private UserSecretService userSecretService;
+
     @Override
     public ChatConfigVO getChatConfig() {
         ChatConfigVO chatConfigVO = new ChatConfigVO();
         chatConfigVO.setApiModel(chatConfig.getApiTypeEnum());
+        UserSecretDO userSecretDO = userSecretService.queryBySecret(WebUtil.getSecret());
         if (chatConfig.getApiTypeEnum() == ApiTypeEnum.ACCESS_TOKEN || BooleanUtil.isFalse(chatConfig.getIsShowBalance())) {
             chatConfigVO.setBalance(StrUtil.DASHED);
-        } else {
-            // TODO 加缓存
-            chatConfigVO.setBalance(String.valueOf(ApiKeyChatClientBuilder.buildOpenAiClient().creditGrants().getTotalAvailable()));
         }
         chatConfigVO.setHttpsProxy(StrUtil.isAllNotEmpty(chatConfig.getHttpProxyHost(), String.valueOf(chatConfig.getHttpProxyPort()))
                 ? String.format("%s:%s", chatConfig.getHttpProxyHost(), chatConfig.getHttpProxyPort())
@@ -56,6 +56,8 @@ public class ChatServiceImpl implements ChatService {
         chatConfigVO.setReverseProxy(chatConfig.getApiReverseProxy());
         chatConfigVO.setSocksProxy(StrPool.DASHED);
         chatConfigVO.setTimeoutMs(chatConfig.getTimeoutMs());
+        chatConfigVO.setBalance(userSecretDO.getBalance() + "");
+        chatConfigVO.setInitValue(userSecretDO.getInitValue());
         return chatConfigVO;
     }
 

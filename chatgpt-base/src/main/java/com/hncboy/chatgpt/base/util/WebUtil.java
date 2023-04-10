@@ -2,6 +2,7 @@ package com.hncboy.chatgpt.base.util;
 
 import cn.hutool.core.text.StrPool;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.servlet.JakartaServletUtil;
 import com.hncboy.chatgpt.base.exception.ServiceException;
 import lombok.experimental.UtilityClass;
 import org.springframework.lang.Nullable;
@@ -10,6 +11,8 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.function.Predicate;
 
@@ -65,6 +68,11 @@ public class WebUtil {
      */
     public static String getIp() {
         return getIp(WebUtil.getRequest());
+    }
+
+    public static String getSecret() {
+        String authorization = JakartaServletUtil.getHeader(WebUtil.getRequest(), "Authorization", StandardCharsets.UTF_8);
+        return authorization.replace("Bearer ", "").trim();
     }
 
     /**

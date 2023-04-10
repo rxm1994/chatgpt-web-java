@@ -2,6 +2,7 @@ package com.hncboy.chatgpt.front.domain.vo;
 
 import com.hncboy.chatgpt.base.enums.ApiTypeEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme.In;
 import lombok.Data;
 
 /**
@@ -15,6 +16,9 @@ public class ChatConfigVO {
 
     @Schema(title = "API 类型")
     private ApiTypeEnum apiModel;
+
+    //初始额度
+    private Long initValue;
 
     @Schema(title = "余额")
     private String balance;
@@ -30,4 +34,6 @@ public class ChatConfigVO {
 
     @Schema(title = "超时时间")
     private Integer timeoutMs;
+
+
 }

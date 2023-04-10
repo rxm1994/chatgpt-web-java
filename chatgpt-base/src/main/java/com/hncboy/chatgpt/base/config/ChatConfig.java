@@ -108,6 +108,11 @@ public class ChatConfig implements InitializingBean {
     private Integer limitQuestionContextCount;
 
     /**
+     * vip用户权益倍数
+     */
+    private Integer vipMultiple;
+
+    /**
      * 是否展示余额，默认不展示
      */
     private Boolean isShowBalance;
