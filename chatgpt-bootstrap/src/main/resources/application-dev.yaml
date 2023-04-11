@@ -44,7 +44,7 @@ chat:
   # 全局最大请求时间间隔（秒）
   maxRequestSecond: 1800
   # ip 时间内最大请求次数
-  ipMaxRequest: 150
+  ipMaxRequest: 30
   # ip 最大请求时间间隔（秒）
   ipMaxRequestSecond: 1800
   # 限制上下文对话的数量
@@ -55,5 +55,5 @@ chat:
   isAdminShowHiddenMessage: false
 
   #vip用户的权益倍数，例如IP时间内请求次数，全局最大请求次数，上下文对话数量
-  vipMultiple: 3
+  vipMultiple: 5
 
