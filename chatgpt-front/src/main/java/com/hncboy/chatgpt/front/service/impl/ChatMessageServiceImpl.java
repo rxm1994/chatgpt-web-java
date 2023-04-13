@@ -16,10 +16,11 @@ import com.hncboy.chatgpt.front.domain.request.ChatProcessRequest;
 import com.hncboy.chatgpt.front.mapper.ChatMessageMapper;
 import com.hncboy.chatgpt.front.service.ChatMessageService;
 import com.hncboy.chatgpt.front.service.ChatRoomService;
+import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.annotation.Resource;
 import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
@@ -30,6 +31,7 @@ import java.util.UUID;
  * @date 2023/3/25 16:33
  * 聊天记录相关业务实现类
  */
+@Slf4j
 @Service("FrontChatMessageServiceImpl")
 public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatMessageDO> implements ChatMessageService {
 
@@ -109,9 +111,8 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
             chatMessageDO.setQuestionContextCount(parentChatMessage.getQuestionContextCount() + 1);
 
             // ApiKey 限制上下文问题的数量
-            if (chatMessageDO.getApiType() == ApiTypeEnum.API_KEY
-                    && chatMessageDO.getQuestionContextCount() > chatConfig.getLimitQuestionContextCount()) {
-                throw new ServiceException(StrUtil.format("当前允许连续对话的问题数量为[{}]次，已达到上限，请关闭上下文对话重新发送", chatConfig.getLimitQuestionContextCount()));
+            if (chatMessageDO.getApiType() == ApiTypeEnum.API_KEY) {
+                checkQuestionContextCount(chatMessageDO.getQuestionContextCount());
             }
         } else {
             // 创建新聊天室
@@ -120,5 +121,24 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
             chatMessageDO.setContextCount(1);
             chatMessageDO.setQuestionContextCount(1);
         }
+    }
+
+    private void checkQuestionContextCount(int contextCount) {
+        log.info("context:{}", contextCount);
+        String secret = WebUtil.getSecret();
+        Integer maxContextCount = chatConfig.getLimitQuestionContextCount();
+        if (!secret.equals(chatConfig.getAuthSecretKey())) {
+            maxContextCount = maxContextCount * chatConfig.getLimitQuestionContextCount();
+            log.info("vip secret:{} ,maxContextCount ={}", secret, maxContextCount);
+            if (contextCount > maxContextCount) {
+                throw new ServiceException(StrUtil.format("因官方限制，当前允许连续对话的问题数量为[{}]次，已达到上限，请您关闭上下文对话重新发送", chatConfig.getLimitQuestionContextCount()));
+            }
+        } else {
+            if (contextCount > maxContextCount) {
+                throw new ServiceException(StrUtil.format("当前允许连续对话的问题数量为[{}]次，已达到上限，请关闭上下文对话重新发送," +
+                        "可以关注微信公众号 AI小薪 申请vip账户，vip账户上限次数为[{}]", chatConfig.getLimitQuestionContextCount(), chatConfig.getLimitQuestionContextCount() * chatConfig.getVipMultiple()));
+            }
+        }
+
     }
 }
