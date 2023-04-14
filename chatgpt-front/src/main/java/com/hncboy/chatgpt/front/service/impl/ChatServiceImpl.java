@@ -8,7 +8,9 @@ import cn.hutool.extra.spring.SpringUtil;
 import com.hncboy.chatgpt.base.config.ChatConfig;
 import com.hncboy.chatgpt.base.domain.entity.UserSecretDO;
 import com.hncboy.chatgpt.base.enums.ApiTypeEnum;
+import com.hncboy.chatgpt.base.exception.AuthException;
 import com.hncboy.chatgpt.base.service.UserSecretService;
+import com.hncboy.chatgpt.base.util.Dict;
 import com.hncboy.chatgpt.base.util.ObjectMapperUtil;
 import com.hncboy.chatgpt.base.util.StringUtil;
 import com.hncboy.chatgpt.base.util.WebUtil;
@@ -24,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -64,7 +65,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public ResponseBodyEmitter chatProcess(ChatProcessRequest chatProcessRequest) {
         String secret = JakartaServletUtil.getHeader(WebUtil.getRequest(), "Authorization", StandardCharsets.UTF_8).replace("Bearer ", "").trim();
-
+        beforeProcess(chatProcessRequest);
         // 超时时间设置 3 分钟
         ResponseBodyEmitter emitter = new ResponseBodyEmitter(3 * 60 * 1000L);
         emitter.onCompletion(() -> {
@@ -78,12 +79,6 @@ public class ChatServiceImpl implements ChatService {
         });
         emitter.onTimeout(() -> log.error("请求参数：{}，Back-end closed the emitter connection.", ObjectMapperUtil.toJson(chatProcessRequest)));
 
-        try {
-            emitter.send("This is the end of the response stream.");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         // 构建 emitter 处理链路
         ResponseEmitterChain ipRateLimiterEmitterChain = new IpRateLimiterEmitterChain();
         ResponseEmitterChain sensitiveWordEmitterChain = new SensitiveWordEmitterChain();
@@ -91,5 +86,13 @@ public class ChatServiceImpl implements ChatService {
         ipRateLimiterEmitterChain.setNext(sensitiveWordEmitterChain);
         ipRateLimiterEmitterChain.doChain(chatProcessRequest, emitter);
         return emitter;
+    }
+
+    private void beforeProcess(ChatProcessRequest chatProcessRequest) {
+        String prompt = chatProcessRequest.getPrompt();
+        if (Dict.CHANGE_SECRET.equals(prompt)) {
+            log.info("need change secret ,request:{}", ObjectMapperUtil.toJson(chatProcessRequest));
+            throw new AuthException("请重新输入密码");
+        }
     }
 }
