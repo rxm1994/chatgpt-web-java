@@ -2,6 +2,7 @@ package com.hncboy.chatgpt.front.api.listener;
 
 import cn.hutool.core.util.StrUtil;
 import com.hncboy.chatgpt.base.domain.entity.ChatMessageDO;
+import com.hncboy.chatgpt.base.util.WebUtil;
 import com.hncboy.chatgpt.front.api.parser.ResponseParser;
 import com.hncboy.chatgpt.front.api.storage.ChatMessageStorage;
 import com.hncboy.chatgpt.front.api.storage.DataStorage;
@@ -70,12 +71,15 @@ public class ParsedEventSourceListener extends EventSourceListener {
      */
     private String lastOriginalResponseData;
 
+    private String secret;
+
     private ParsedEventSourceListener(Builder builder) {
         this.listeners = builder.listeners;
         this.parser = builder.parser;
         this.dataStorage = builder.dataStorage;
         this.originalRequestData = builder.originalRequestData;
         this.questionChatMessageDO = builder.chatMessageDO;
+        this.secret = builder.secret;
         this.answerChatMessageDO = new ChatMessageDO();
     }
 
@@ -139,6 +143,7 @@ public class ParsedEventSourceListener extends EventSourceListener {
             chatReplyMessageVO.setParentMessageId(answerChatMessageDO.getParentMessageId());
             chatReplyMessageVO.setConversationId(answerChatMessageDO.getConversationId());
             chatReplyMessageVO.setText(receivedMessage);
+            chatReplyMessageVO.setSecret(secret);
         }
 
         // 遍历监听器
@@ -189,6 +194,7 @@ public class ParsedEventSourceListener extends EventSourceListener {
         private String originalRequestData;
         private DataStorage dataStorage;
         private ChatMessageDO chatMessageDO;
+        private String secret;
 
         public Builder addListener(AbstractStreamListener listener) {
             listeners.add(listener);
@@ -212,6 +218,11 @@ public class ParsedEventSourceListener extends EventSourceListener {
 
         public Builder setChatMessageDO(ChatMessageDO chatMessageDO) {
             this.chatMessageDO = chatMessageDO;
+            return this;
+        }
+
+        public Builder setSecret(String  secret) {
+            this.secret = secret;
             return this;
         }
 

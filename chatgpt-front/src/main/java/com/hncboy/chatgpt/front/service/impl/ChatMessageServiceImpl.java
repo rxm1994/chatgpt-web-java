@@ -128,10 +128,10 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
         String secret = WebUtil.getSecret();
         Integer maxContextCount = chatConfig.getLimitQuestionContextCount();
         if (!secret.equals(chatConfig.getAuthSecretKey())) {
-            maxContextCount = maxContextCount * chatConfig.getLimitQuestionContextCount();
+            maxContextCount = maxContextCount * chatConfig.getVipMultiple();
             log.info("vip secret:{} ,maxContextCount ={}", secret, maxContextCount);
             if (contextCount > maxContextCount) {
-                throw new ServiceException(StrUtil.format("因官方限制，当前允许连续对话的问题数量为[{}]次，已达到上限，请您关闭上下文对话重新发送", chatConfig.getLimitQuestionContextCount()));
+                throw new ServiceException(StrUtil.format("因官方限制，当前允许连续对话的问题数量为[{}]次，已达到上限，请您关闭上下文对话重新发送", maxContextCount));
             }
         } else {
             if (contextCount > maxContextCount) {

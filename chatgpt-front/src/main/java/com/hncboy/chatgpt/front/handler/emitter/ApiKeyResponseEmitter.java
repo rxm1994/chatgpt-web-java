@@ -7,9 +7,11 @@ import com.hncboy.chatgpt.base.domain.entity.ChatMessageDO;
 import com.hncboy.chatgpt.base.enums.ApiTypeEnum;
 import com.hncboy.chatgpt.base.enums.ChatMessageStatusEnum;
 import com.hncboy.chatgpt.base.enums.ChatMessageTypeEnum;
+import com.hncboy.chatgpt.base.util.Dict;
 import com.hncboy.chatgpt.base.util.ObjectMapperUtil;
+import com.hncboy.chatgpt.base.util.StringUtil;
+import com.hncboy.chatgpt.base.util.WebUtil;
 import com.hncboy.chatgpt.front.api.apikey.ApiKeyChatClientBuilder;
-import com.hncboy.chatgpt.front.api.listener.ConsoleStreamListener;
 import com.hncboy.chatgpt.front.api.listener.ParsedEventSourceListener;
 import com.hncboy.chatgpt.front.api.listener.ResponseBodyEmitterStreamListener;
 import com.hncboy.chatgpt.front.api.parser.ChatCompletionResponseParser;
@@ -18,10 +20,11 @@ import com.hncboy.chatgpt.front.domain.request.ChatProcessRequest;
 import com.hncboy.chatgpt.front.service.ChatMessageService;
 import com.unfbx.chatgpt.entity.chat.ChatCompletion;
 import com.unfbx.chatgpt.entity.chat.Message;
+import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
-import jakarta.annotation.Resource;
 import java.util.LinkedList;
 import java.util.Objects;
 
@@ -30,6 +33,7 @@ import java.util.Objects;
  * @date 2023/3/24 15:51
  * ApiKey 响应处理
  */
+@Slf4j
 @Component
 public class ApiKeyResponseEmitter implements ResponseEmitter {
 
@@ -54,7 +58,6 @@ public class ApiKeyResponseEmitter implements ResponseEmitter {
         LinkedList<Message> messages = new LinkedList<>();
         // 添加用户上下文消息
         addContextChatMessage(chatMessageDO, messages);
-
         // 系统角色消息
         if (StrUtil.isNotBlank(chatProcessRequest.getSystemMessage())) {
             // 系统消息
@@ -82,11 +85,12 @@ public class ApiKeyResponseEmitter implements ResponseEmitter {
         // 构建事件监听器
         ParsedEventSourceListener parsedEventSourceListener = new ParsedEventSourceListener.Builder()
 //                .addListener(new ConsoleStreamListener())
-                .addListener(new ResponseBodyEmitterStreamListener(emitter))
+                .addListener(new ResponseBodyEmitterStreamListener(emitter,""))
                 .setParser(parser)
                 .setDataStorage(dataStorage)
                 .setOriginalRequestData(ObjectMapperUtil.toJson(chatCompletion))
                 .setChatMessageDO(chatMessageDO)
+                .setSecret(WebUtil.getSecret())
                 .build();
 
         ApiKeyChatClientBuilder.buildOpenAiStreamClient().streamChatCompletion(chatCompletion, parsedEventSourceListener);
@@ -115,6 +119,12 @@ public class ApiKeyResponseEmitter implements ResponseEmitter {
         Message.Role role = (chatMessageDO.getMessageType() == ChatMessageTypeEnum.ANSWER) ?
                 Message.Role.ASSISTANT : Message.Role.USER;
 
+        if (getMessageLength(messages) > Dict.MAX_MESSAGE_LENGTH) {
+            log.info("length over:{} ,stop add context,messages:{}", Dict.MAX_MESSAGE_LENGTH, ObjectMapperUtil.toJson(messages));
+            messages.removeFirst();
+            return;
+        }
+
         // 回答不成功的情况下，不添加回答消息记录和该回答的问题消息记录
         if (chatMessageDO.getMessageType() == ChatMessageTypeEnum.ANSWER
                 && chatMessageDO.getStatus() != ChatMessageStatusEnum.PART_SUCCESS
@@ -136,5 +146,13 @@ public class ApiKeyResponseEmitter implements ResponseEmitter {
         ChatMessageDO parentMessage = chatMessageService.getOne(new LambdaQueryWrapper<ChatMessageDO>()
             .eq(ChatMessageDO::getMessageId, chatMessageDO.getParentMessageId()));
         addContextChatMessage(parentMessage, messages);
+    }
+
+    private int getMessageLength(LinkedList<Message> messages) {
+        int length = 0;
+        for (Message message : messages) {
+            length = length + StringUtil.countChineseAndEnglish(message.getContent());
+        }
+        return length;
     }
 }

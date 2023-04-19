@@ -61,7 +61,7 @@ public class AccessTokenResponseEmitter implements ResponseEmitter {
         // 构建事件监听器
         ParsedEventSourceListener parsedEventSourceListener = new ParsedEventSourceListener.Builder()
 //                .addListener(new ConsoleStreamListener())
-                .addListener(new ResponseBodyEmitterStreamListener(emitter))
+                .addListener(new ResponseBodyEmitterStreamListener(emitter,""))
                 .setParser(parser)
                 .setDataStorage(dataStorage)
                 .setOriginalRequestData(ObjectMapperUtil.toJson(conversationRequest))

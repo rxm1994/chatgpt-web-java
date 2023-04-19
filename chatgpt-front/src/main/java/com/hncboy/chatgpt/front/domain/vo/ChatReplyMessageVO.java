@@ -33,6 +33,8 @@ public class ChatReplyMessageVO {
     @Schema(title = "回复的消息")
     private String text;
 
+    private String secret;
+
     /**
      * 当链路出现问题时 取上一条消息的 parentMessageId 和 conversationId，使得异常不影响上下文
      *
