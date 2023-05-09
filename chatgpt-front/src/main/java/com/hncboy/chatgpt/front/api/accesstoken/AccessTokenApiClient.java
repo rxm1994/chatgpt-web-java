@@ -2,7 +2,9 @@ package com.hncboy.chatgpt.front.api.accesstoken;
 
 import cn.hutool.http.ContentType;
 import cn.hutool.http.Header;
+import com.hncboy.chatgpt.base.enums.ApiTypeEnum;
 import com.hncboy.chatgpt.base.util.ObjectMapperUtil;
+import com.hncboy.chatgpt.base.util.OkHttpClientUtil;
 import lombok.Builder;
 import okhttp3.Headers;
 import okhttp3.MediaType;
@@ -12,11 +14,9 @@ import okhttp3.RequestBody;
 import okhttp3.sse.EventSourceListener;
 import okhttp3.sse.EventSources;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * @author hncboy
- * @date 2023/3/25 00:32
+ * @date 2023-3-25
  * AccessTokenApiClient
  */
 @Builder
@@ -36,15 +36,6 @@ public class AccessTokenApiClient {
      * 模型
      */
     private String model;
-
-    /**
-     * 创建 OkHttpClient
-     */
-    private final OkHttpClient okHttpClient = new OkHttpClient.Builder()
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .build();
 
     /**
      * 问答接口 stream 形式
@@ -67,6 +58,7 @@ public class AccessTokenApiClient {
                 .headers(headers)
                 .build();
         // 创建事件
+        OkHttpClient okHttpClient = OkHttpClientUtil.getInstance(ApiTypeEnum.ACCESS_TOKEN, 60000, 60000, 60000, null);
         EventSources.createFactory(okHttpClient).newEventSource(request, eventSourceListener);
     }
 }

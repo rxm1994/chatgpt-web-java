@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hncboy.chatgpt.base.config.ChatConfig;
+import com.hncboy.chatgpt.base.domain.entity.UserSecretDO;
+import com.hncboy.chatgpt.base.service.UserSecretService;
 import com.hncboy.chatgpt.base.util.WebUtil;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,7 +32,7 @@ import java.util.concurrent.Executors;
 
 /**
  * @author hncboy
- * @date 2023/3/30 21:01
+ * @date 2023-3-30
  * 限流处理器
  */
 @Slf4j
@@ -111,15 +113,15 @@ public class RateLimiterHandler {
     }
 
     private static Integer getCount(Integer count, ChatConfig chatConfig) {
-        String authorization = JakartaServletUtil.getHeader(WebUtil.getRequest(), "Authorization", StandardCharsets.UTF_8);
-        String secret = authorization.replace("Bearer ", "").trim();
-        if (chatConfig.getAuthSecretKey().equals(secret)) {
-            //代表默认的secret相当于是免费的限制一下次数
-            return count;
-        } else {
+        String userName = WebUtil.getUserName();
+        log.info("userName:{}", userName);
+        UserSecretService userSecretService = SpringUtil.getBean(UserSecretService.class);
+        UserSecretDO userSecretDO = userSecretService.queryByUserName(userName);
+        if (userSecretDO != null && userSecretDO.getBalance() > 0) {
             log.info("vip secret multiple :{}", chatConfig.getVipMultiple());
             return count * chatConfig.getVipMultiple();
         }
+        return count;
     }
 
 

@@ -1,16 +1,15 @@
 package com.hncboy.chatgpt.front.api.storage;
 
+import cn.hutool.core.util.StrUtil;
 import com.hncboy.chatgpt.base.domain.entity.ChatMessageDO;
-import com.unfbx.chatgpt.entity.chat.ChatCompletionResponse;
-import com.unfbx.chatgpt.entity.common.Usage;
+import com.unfbx.chatgpt.utils.TikTokensUtil;
 import org.springframework.stereotype.Component;
 
-import java.util.Objects;
 import java.util.UUID;
 
 /**
  * @author hncboy
- * @date 2023/3/25 22:52
+ * @date 2023-3-25
  * ApiKey 数据库数据存储
  */
 @Component
@@ -40,21 +39,22 @@ public class ApiKeyDatabaseDataStorage extends AbstractDatabaseDataStorage {
      * @param chatMessageStorage 聊天消息数据存储
      */
     private void populateMessageUsageToken(ChatMessageStorage chatMessageStorage) {
-        ChatCompletionResponse chatCompletionResponse = (ChatCompletionResponse) chatMessageStorage.getParser()
-                .parseSuccess(chatMessageStorage.getOriginalResponseData());
-        Usage usage = chatCompletionResponse.getUsage();
-        if (Objects.nonNull(usage)) {
-            // FIXME 没有 usage
-            // 填充使用情况
-            ChatMessageDO answerChatMessageDO = chatMessageStorage.getAnswerChatMessageDO();
-            answerChatMessageDO.setTotalTokens(usage.getTotalTokens());
-            answerChatMessageDO.setPromptTokens(usage.getPromptTokens());
-            answerChatMessageDO.setCompletionTokens(usage.getCompletionTokens());
+        // 获取模型
+        ChatMessageDO questionChatMessageDO = chatMessageStorage.getQuestionChatMessageDO();
+        String modelName = questionChatMessageDO.getModelName();
 
-            ChatMessageDO questionChatMessageDO = chatMessageStorage.getQuestionChatMessageDO();
-            questionChatMessageDO.setTotalTokens(usage.getTotalTokens());
-            questionChatMessageDO.setPromptTokens(usage.getPromptTokens());
-            questionChatMessageDO.setCompletionTokens(usage.getCompletionTokens());
-        }
+        // 获取回答消耗的 tokens
+        ChatMessageDO answerChatMessageDO = chatMessageStorage.getAnswerChatMessageDO();
+        String answerContent = answerChatMessageDO.getContent();
+        int completionTokens = StrUtil.isEmpty(answerContent) ? 0 : TikTokensUtil.tokens(modelName, answerContent);
+
+        // 填充使用情况
+        int totalTokens = questionChatMessageDO.getPromptTokens() + completionTokens;
+        answerChatMessageDO.setPromptTokens(questionChatMessageDO.getPromptTokens());
+        answerChatMessageDO.setCompletionTokens(completionTokens);
+        answerChatMessageDO.setTotalTokens(totalTokens);
+
+        questionChatMessageDO.setCompletionTokens(completionTokens);
+        questionChatMessageDO.setTotalTokens(totalTokens);
     }
 }

@@ -14,7 +14,7 @@ import java.util.Objects;
 
 /**
  * @author hncboy
- * @date 2023/3/22 20:36
+ * @date 2023-3-22
  * 聊天配置参数
  */
 @Data
@@ -200,16 +200,7 @@ public class ChatConfig implements InitializingBean {
      * @return 限制数量
      */
     public Integer getLimitQuestionContextCount() {
-        return Opt.ofNullable(limitQuestionContextCount).orElse(1);
-    }
-
-    /**
-     * 是否展示管理端隐藏的消息，默认不展示
-     *
-     * @return true/false
-     */
-    public Boolean getIsAdminShowHiddenMessage() {
-        return Opt.ofNullable(isAdminShowHiddenMessage).orElse(false);
+        return Opt.ofNullable(limitQuestionContextCount).orElse(0);
     }
 
     @Override
@@ -252,7 +243,7 @@ public class ChatConfig implements InitializingBean {
                 return;
             }
 
-            if (!ConversationModelEnum.NAME_MAP.containsKey(openaiApiKey)) {
+            if (!ConversationModelEnum.NAME_MAP.containsKey(openaiApiModel)) {
                 throw new RuntimeException("AccessToken apiModel 填写错误");
             }
         }

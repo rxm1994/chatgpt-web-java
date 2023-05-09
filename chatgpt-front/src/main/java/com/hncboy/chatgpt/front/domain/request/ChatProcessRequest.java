@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 
 /**
  * @author hncboy
- * @date 2023/3/23 13:17
+ * @date 2023-3-23
  * 消息处理请求
  */
 @Data
@@ -21,7 +21,6 @@ public class ChatProcessRequest {
     @Schema(title = "配置")
     private Options options;
 
-    @Size(max = 100, message = "系统消息字数范围[0, 2000]")
     @Schema(title = "系统消息")
     private String systemMessage;
 

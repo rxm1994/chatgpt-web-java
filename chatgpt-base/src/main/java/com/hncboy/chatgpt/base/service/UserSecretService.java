@@ -14,5 +14,8 @@ public interface UserSecretService extends IService<UserSecretDO> {
 
     void updateBalance(Long balance, Long id);
 
+    UserSecretDO queryByUserName(String userName);
+
+
     void checkSecret();
 }

@@ -1,10 +1,12 @@
 package com.hncboy.chatgpt.front.api.listener;
 
 import cn.hutool.extra.spring.SpringUtil;
-import com.hncboy.chatgpt.base.config.ChatConfig;
+import com.hncboy.chatgpt.base.domain.entity.UserSecretDO;
 import com.hncboy.chatgpt.base.exception.ServiceException;
+import com.hncboy.chatgpt.base.service.UserSecretService;
 import com.hncboy.chatgpt.base.util.ObjectMapperUtil;
 import com.hncboy.chatgpt.base.util.SystemUtil;
+import com.hncboy.chatgpt.base.util.WebUtil;
 import com.hncboy.chatgpt.front.domain.vo.ChatReplyMessageVO;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +20,7 @@ import java.util.Random;
 
 /**
  * @author hncboy
- * @date 2023/3/24 17:19
+ * @date 2023-3-24
  * ResponseBodyEmitter 消息流监听
  */
 @Slf4j
@@ -48,8 +50,9 @@ public class ResponseBodyEmitterStreamListener extends AbstractStreamListener {
         if (StringUtils.isNotEmpty(tips)) {
             chatReplyMessageVO.setText(tips + chatReplyMessageVO.getText());
         } else {
-            ChatConfig chatConfig = SpringUtil.getBean(ChatConfig.class);
-            if (chatReplyMessageVO.getSecret().equals(chatConfig.getAuthSecretKey())) {
+            UserSecretService userSecretService = SpringUtil.getBean(UserSecretService.class);
+            UserSecretDO userSecretDO = userSecretService.queryByUserName(chatReplyMessageVO.getSecret());
+            if (userSecretDO == null || userSecretDO.getBalance() < 0) {
                 Random rand = new Random(); // 创建随机数生成器对象
                 int index = rand.nextInt(SystemUtil.tipList.size()); // 随机生成整数作为数组下标
                 chatReplyMessageVO.setText(SystemUtil.tipList.get(index) + chatReplyMessageVO.getText());

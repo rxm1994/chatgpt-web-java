@@ -14,7 +14,7 @@ import java.util.Date;
 
 /**
  * @author hncboy
- * @date 2023/3/25 16:19
+ * @date 2023-3-25
  * 聊天记录表实体类
  */
 @Data
@@ -26,6 +26,11 @@ public class ChatMessageDO {
      */
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
+
+    /**
+     * 用户 id
+     */
+    private Integer userId;
 
     /**
      * 消息 id
@@ -87,6 +92,11 @@ public class ChatMessageDO {
     private ApiTypeEnum apiType;
 
     /**
+     * 模型名称
+     */
+    private String modelName;
+
+    /**
      * ip
      */
     private String ip;
@@ -117,17 +127,17 @@ public class ChatMessageDO {
     /**
      * 输入消息的 tokens
      */
-    private Long promptTokens;
+    private Integer promptTokens;
 
     /**
      * 输出消息的 tokens
      */
-    private Long completionTokens;
+    private Integer completionTokens;
 
     /**
      * 累计 Tokens
      */
-    private Long totalTokens;
+    private Integer totalTokens;
 
     /**
      * 聊天信息状态

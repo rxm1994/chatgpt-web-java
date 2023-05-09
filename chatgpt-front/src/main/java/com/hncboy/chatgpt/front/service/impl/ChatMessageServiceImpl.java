@@ -1,25 +1,36 @@
 package com.hncboy.chatgpt.front.service.impl;
 
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.extra.spring.SpringUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hncboy.chatgpt.base.config.ChatConfig;
 import com.hncboy.chatgpt.base.domain.entity.ChatMessageDO;
 import com.hncboy.chatgpt.base.domain.entity.ChatRoomDO;
+import com.hncboy.chatgpt.base.domain.entity.UserSecretDO;
 import com.hncboy.chatgpt.base.enums.ApiTypeEnum;
 import com.hncboy.chatgpt.base.enums.ChatMessageStatusEnum;
 import com.hncboy.chatgpt.base.enums.ChatMessageTypeEnum;
 import com.hncboy.chatgpt.base.exception.ServiceException;
+import com.hncboy.chatgpt.base.mapper.ChatMessageMapper;
+import com.hncboy.chatgpt.base.service.UserSecretService;
+import com.hncboy.chatgpt.base.util.ObjectMapperUtil;
+import com.hncboy.chatgpt.base.util.StringUtil;
 import com.hncboy.chatgpt.base.util.WebUtil;
 import com.hncboy.chatgpt.front.domain.request.ChatProcessRequest;
-import com.hncboy.chatgpt.front.mapper.ChatMessageMapper;
+import com.hncboy.chatgpt.front.handler.emitter.ChatMessageEmitterChain;
+import com.hncboy.chatgpt.front.handler.emitter.IpRateLimiterEmitterChain;
+import com.hncboy.chatgpt.front.handler.emitter.ResponseEmitterChain;
+import com.hncboy.chatgpt.front.handler.emitter.SensitiveWordEmitterChain;
 import com.hncboy.chatgpt.front.service.ChatMessageService;
 import com.hncboy.chatgpt.front.service.ChatRoomService;
+import com.hncboy.chatgpt.front.util.FrontUserUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyEmitter;
 
 import java.util.Date;
 import java.util.Objects;
@@ -28,11 +39,11 @@ import java.util.UUID;
 
 /**
  * @author hncboy
- * @date 2023/3/25 16:33
+ * @date 2023-3-25
  * 聊天记录相关业务实现类
  */
 @Slf4j
-@Service("FrontChatMessageServiceImpl")
+@Service
 public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatMessageDO> implements ChatMessageService {
 
     @Resource
@@ -40,6 +51,38 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
 
     @Resource
     private ChatRoomService chatRoomService;
+
+    @Override
+    public ResponseBodyEmitter sendMessage(ChatProcessRequest chatProcessRequest) {
+
+        // 超时时间设置 3 分钟
+        ResponseBodyEmitter emitter = new ResponseBodyEmitter(3 * 60 * 1000L);
+        String userName = FrontUserUtil.getJwtUserInfo().getUsername();
+        UserSecretService userSecretService = SpringUtil.getBean(UserSecretService.class);
+        UserSecretDO userSecretDo = userSecretService.queryByUserName(userName);
+        if (userSecretDo != null && userSecretDo.getBalance() < 0) {
+            log.error("secret 余额为0，请去公众号  进行申请！");
+            throw new ServiceException("vip账户提问字数 余额为0，请去公众号 AI小薪 进行申请！");
+        }
+        emitter.onCompletion(() -> {
+            log.debug("请求参数：{}，Front-end closed the emitter connection.", ObjectMapperUtil.toJson(chatProcessRequest));
+            if (userSecretDo != null) {
+                int promptLength = StringUtil.countChineseAndEnglish(chatProcessRequest.getPrompt());
+                log.info("last balance:{},spends words:{}", userSecretDo.getBalance(), promptLength);
+                long newBalance = userSecretDo.getBalance() - promptLength;
+                userSecretService.updateBalance(newBalance, userSecretDo.getId());
+            }
+        });
+        emitter.onTimeout(() -> log.error("请求参数：{}，Back-end closed the emitter connection.", ObjectMapperUtil.toJson(chatProcessRequest)));
+
+        // 构建 emitter 处理链路
+        ResponseEmitterChain ipRateLimiterEmitterChain = new IpRateLimiterEmitterChain();
+        ResponseEmitterChain sensitiveWordEmitterChain = new SensitiveWordEmitterChain();
+        sensitiveWordEmitterChain.setNext(new ChatMessageEmitterChain());
+        ipRateLimiterEmitterChain.setNext(sensitiveWordEmitterChain);
+        ipRateLimiterEmitterChain.doChain(chatProcessRequest, emitter);
+        return emitter;
+    }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -53,11 +96,13 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
         if (apiTypeEnum == ApiTypeEnum.API_KEY) {
             chatMessageDO.setApiKey(chatConfig.getOpenaiApiKey());
         }
+        chatMessageDO.setUserId(FrontUserUtil.getUserId());
         chatMessageDO.setContent(chatProcessRequest.getPrompt());
+        chatMessageDO.setModelName(chatConfig.getOpenaiApiModel());
         chatMessageDO.setOriginalData(null);
-        chatMessageDO.setPromptTokens(-1L);
-        chatMessageDO.setCompletionTokens(-1L);
-        chatMessageDO.setTotalTokens(-1L);
+        chatMessageDO.setPromptTokens(-1);
+        chatMessageDO.setCompletionTokens(-1);
+        chatMessageDO.setTotalTokens(-1);
         chatMessageDO.setIp(WebUtil.getIp());
         chatMessageDO.setStatus(ChatMessageStatusEnum.INIT);
         chatMessageDO.setCreateTime(new Date());
@@ -90,6 +135,8 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
         if (StrUtil.isAllNotBlank(parentMessageId, conversationId)) {
             // 寻找父级消息
             ChatMessageDO parentChatMessage = getOne(new LambdaQueryWrapper<ChatMessageDO>()
+                    // 用户 id 一致
+                    .eq(ChatMessageDO::getUserId, FrontUserUtil.getUserId())
                     // 消息 id 一致
                     .eq(ChatMessageDO::getMessageId, parentMessageId)
                     // 对话 id 一致
@@ -110,6 +157,12 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
             chatMessageDO.setContextCount(parentChatMessage.getContextCount() + 1);
             chatMessageDO.setQuestionContextCount(parentChatMessage.getQuestionContextCount() + 1);
 
+            if (chatMessageDO.getApiType() == ApiTypeEnum.ACCESS_TOKEN) {
+                if (!Objects.equals(chatMessageDO.getModelName(), parentChatMessage.getModelName())) {
+                    throw new ServiceException(StrUtil.format("当前对话类型为 AccessToken 使用模型不一样，请开启新的对话"));
+                }
+            }
+
             // ApiKey 限制上下文问题的数量
             if (chatMessageDO.getApiType() == ApiTypeEnum.API_KEY) {
                 checkQuestionContextCount(chatMessageDO.getQuestionContextCount());
@@ -125,16 +178,20 @@ public class ChatMessageServiceImpl extends ServiceImpl<ChatMessageMapper, ChatM
 
     private void checkQuestionContextCount(int contextCount) {
         log.info("context:{}", contextCount);
-        String secret = WebUtil.getSecret();
+        String userName = WebUtil.getUserName();
+        UserSecretService userSecretService = SpringUtil.getBean(UserSecretService.class);
+        UserSecretDO userSecretDO = userSecretService.queryByUserName(userName);
         Integer maxContextCount = chatConfig.getLimitQuestionContextCount();
-        if (!secret.equals(chatConfig.getAuthSecretKey())) {
+        if (userSecretDO != null && userSecretDO.getBalance() > 0) {
+            log.info("vip userName:{}", userName);
             maxContextCount = maxContextCount * chatConfig.getVipMultiple();
-            log.info("vip secret:{} ,maxContextCount ={}", secret, maxContextCount);
+            log.info("vip userName:{} ,maxContextCount ={}", userName, maxContextCount);
             if (contextCount > maxContextCount) {
                 throw new ServiceException(StrUtil.format("因官方限制，当前允许连续对话的问题数量为[{}]次，已达到上限，请您关闭上下文对话重新发送", maxContextCount));
             }
         } else {
             if (contextCount > maxContextCount) {
+                log.info("userName:{} contextCount:{}", userName, contextCount);
                 throw new ServiceException(StrUtil.format("当前允许连续对话的问题数量为[{}]次，已达到上限，请关闭上下文对话重新发送," +
                         "可以关注微信公众号 AI小薪 申请vip账户，vip账户上限次数为[{}]", chatConfig.getLimitQuestionContextCount(), chatConfig.getLimitQuestionContextCount() * chatConfig.getVipMultiple()));
             }

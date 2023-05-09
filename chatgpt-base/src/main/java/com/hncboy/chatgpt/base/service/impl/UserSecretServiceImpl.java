@@ -36,6 +36,12 @@ public class UserSecretServiceImpl extends ServiceImpl<UserSecretMapper, UserSec
     }
 
     @Override
+    public UserSecretDO queryByUserName(String userName) {
+        QueryWrapper<UserSecretDO> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_name", userName);
+        return getOne(wrapper);    }
+
+    @Override
     public void checkSecret() {
     }
 }

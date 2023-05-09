@@ -9,6 +9,8 @@ public class Dict {
 
   public static final String CHANGE_SECRET = "更新密码";
 
-  public static final Integer MAX_MESSAGE_LENGTH = 2200;
+
+  public static final Integer MIN_REMAIN_TOKENS = 500; //每次提问至少要剩余多少token
+
 
 }

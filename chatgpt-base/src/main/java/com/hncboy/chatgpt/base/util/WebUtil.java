@@ -1,8 +1,12 @@
 package com.hncboy.chatgpt.base.util;
 
+import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.core.text.StrPool;
+import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.servlet.JakartaServletUtil;
+import com.hncboy.chatgpt.base.constant.ApplicationConstant;
+import com.hncboy.chatgpt.base.enums.FrontUserRegisterTypeEnum;
 import com.hncboy.chatgpt.base.exception.ServiceException;
 import lombok.experimental.UtilityClass;
 import org.springframework.lang.Nullable;
@@ -18,7 +22,7 @@ import java.util.function.Predicate;
 
 /**
  * @author hncboy
- * @date 2023/3/27 21:52
+ * @date 2023-3-27
  * Web 相关工具类
  */
 @UtilityClass
@@ -73,6 +77,12 @@ public class WebUtil {
     public static String getSecret() {
         String authorization = JakartaServletUtil.getHeader(WebUtil.getRequest(), "Authorization", StandardCharsets.UTF_8);
         return authorization.replace("Bearer ", "").trim();
+    }
+
+    public static String getUserName() {
+        String registerTypeCode = (String) StpUtil.getExtra(ApplicationConstant.FRONT_JWT_REGISTER_TYPE_CODE);
+        FrontUserRegisterTypeEnum registerType = FrontUserRegisterTypeEnum.CODE_MAP.get(registerTypeCode);
+        return String.valueOf(StpUtil.getExtra(ApplicationConstant.FRONT_JWT_USERNAME));
     }
 
     /**
