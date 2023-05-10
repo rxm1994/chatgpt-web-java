@@ -6,6 +6,7 @@ import com.hncboy.chatgpt.base.config.EmailConfig;
 import com.hncboy.chatgpt.base.enums.EmailBizTypeEnum;
 import com.hncboy.chatgpt.front.service.EmailService;
 import com.hncboy.chatgpt.front.service.SysEmailSendLogService;
+import com.hncboy.chatgpt.front.util.MailSendUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateSpec;
@@ -80,6 +81,6 @@ public class EmailServiceImpl implements EmailService {
      * @return 响应
      */
     protected String sendMessage(String targetEmail, String content) {
-        return MailUtil.send(mailAccount, targetEmail, "【StarGPT】账号注册", content, true);
+        return MailSendUtil.send(mailAccount, targetEmail, "【StarGPT】账号注册", content, true);
     }
 }
