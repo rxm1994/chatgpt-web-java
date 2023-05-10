@@ -50,6 +50,7 @@ public class EmailServiceImpl implements EmailService {
         mailAccount.setDebug(true);
         mailAccount.setSslEnable(true);
         mailAccount.setPass(emailConfig.getPass());
+        mailAccount.setStarttlsEnable(true);
         log.info("初始化邮箱账号完毕，配置信息为：{} ", emailConfig);
     }
 
